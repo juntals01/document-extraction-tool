@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { QueueModule } from 'src/queue/queue.module';
 import { DataSource } from 'typeorm';
 import { DbModule } from '../db/database.module';
 import { UploadController } from './upload.controller';
@@ -12,8 +13,9 @@ export const UploadRepositoryProvider = {
 };
 
 @Module({
-  imports: [DbModule],
+  imports: [DbModule, QueueModule],
   controllers: [UploadController],
   providers: [UploadService, UploadRepositoryProvider],
+  exports: [UploadService],
 })
 export class UploadModule {}

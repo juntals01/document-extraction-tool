@@ -1,15 +1,26 @@
 import {
   BadRequestException,
   Controller,
+  Get,
+  Param,
   Post,
+  Query,
   UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiConsumes, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiOkResponse,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { promises as fsp } from 'fs';
 import { diskStorage } from 'multer';
 import * as path from 'path';
+import { QueueService } from '../queue/queue.service';
+import { PaginatedUploadResponseDto } from './dto/paginated-upload-response.dto';
 import { UploadResponseDto } from './dto/upload-response.dto';
 import { UploadService } from './upload.service';
 import { ensureDir } from './utils/ensure-dir';
@@ -27,7 +38,41 @@ type UploadedPdf = {
 @ApiTags('upload')
 @Controller('upload')
 export class UploadController {
-  constructor(private readonly uploadService: UploadService) {}
+  constructor(
+    private readonly uploadService: UploadService,
+    private readonly queueService: QueueService,
+  ) {}
+
+  // --- NEW: GET /upload (list) ---
+  @Get()
+  @ApiOkResponse({ type: PaginatedUploadResponseDto })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  async list(@Query('page') pageQ?: string, @Query('limit') limitQ?: string) {
+    const page = Math.max(1, Number(pageQ || 1));
+    const limit = Math.min(100, Math.max(1, Number(limitQ || 20)));
+    const { items, total } = await this.uploadService.listUploads(page, limit);
+    return { items, page, limit, total };
+  }
+
+  // --- NEW: POST /upload/:id/queue (enqueue) ---
+  @Post(':id/queue')
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        jobId: { type: 'string' },
+        status: { type: 'string', example: 'pending' },
+      },
+    },
+  })
+  async enqueueById(@Param('id') id: string) {
+    await this.uploadService.assertUploadExists(id);
+    const job = await this.queueService.enqueue('extract_pdf', {
+      uploadId: id,
+    });
+    return { jobId: job.id, status: job.status };
+  }
 
   /** Accepts multiple PDF files, saves to disk with unique slug, and records them in the database. */
   @Post()
@@ -36,10 +81,7 @@ export class UploadController {
     schema: {
       type: 'object',
       properties: {
-        files: {
-          type: 'array',
-          items: { type: 'string', format: 'binary' },
-        },
+        files: { type: 'array', items: { type: 'string', format: 'binary' } },
       },
       required: ['files'],
     },

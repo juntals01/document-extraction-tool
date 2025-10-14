@@ -1,17 +1,18 @@
+import { NestFactory } from '@nestjs/core';
 import 'reflect-metadata';
+import { WorkerModule } from './worker.module';
 
 async function bootstrap() {
-  // Put your queue consumers here (BullMQ, custom jobs, etc.)
+  const app = await NestFactory.createApplicationContext(WorkerModule, {
+    logger: ['log', 'error', 'warn'],
+  });
+
   const name = process.env.WORKER_NAME ?? 'default-worker';
   console.log(`👷 Worker "${name}" started at ${new Date().toISOString()}`);
 
-  // Keep process alive (replace with real consumers)
-  process.stdin.resume();
-
-  // Graceful shutdown
   const shutdown = (sig: string) => {
     console.log(`🛑 Worker received ${sig}, shutting down...`);
-    process.exit(0);
+    app.close().finally(() => process.exit(0));
   };
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));

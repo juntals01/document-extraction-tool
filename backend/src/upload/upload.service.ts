@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
 import { Repository } from 'typeorm';
@@ -38,5 +38,24 @@ export class UploadService {
       this.repo.create({ ...r, size: String(r.size) }),
     );
     return this.repo.save(entities);
+  }
+
+  /** List uploads with pagination. */
+  async listUploads(page = 1, limit = 20) {
+    const take = Math.min(100, Math.max(1, limit));
+    const skip = (Math.max(1, page) - 1) * take;
+    const [items, total] = await this.repo.findAndCount({
+      take,
+      skip,
+      order: { createdAt: 'DESC' as any },
+    });
+    return { items, total };
+  }
+
+  /** Ensure an upload exists; return it or throw 404. */
+  async assertUploadExists(uploadId: string) {
+    const found = await this.repo.findOne({ where: { id: uploadId } as any });
+    if (!found) throw new NotFoundException('Upload not found');
+    return found;
   }
 }
