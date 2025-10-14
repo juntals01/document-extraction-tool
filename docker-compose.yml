@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: docxt-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-docxt}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-docxt}
+      POSTGRES_DB: ${POSTGRES_DB:-docxt}
+    ports:
+      - '${POSTGRES_PORT:-5433}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-docxt} -d ${POSTGRES_DB:-docxt}',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

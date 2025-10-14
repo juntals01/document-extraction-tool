@@ -1,0 +1,20 @@
+{
+  "name": "document-extraction-tool",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down -v",
+    "infra:logs": "docker compose logs -f postgres",
+    "dev": "concurrently -k -n WEB,API -c auto \"npm:dev:web\" \"npm:dev:api\"",
+    "dev:web": "dotenv -e .env -- bash -lc 'PORT=${WEB_PORT:-3000} npm run dev -w frontend'",
+    "dev:api": "dotenv -e .env -- bash -lc 'PORT=${API_PORT:-4000} npm run start:dev -w backend'"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1",
+    "dotenv-cli": "^7.3.0"
+  }
+}

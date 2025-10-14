@@ -1,0 +1,62 @@
+# ============================================
+# 🔧 Root (Monorepo)
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.DS_Store
+dist/
+tmp/
+*.log
+
+# ============================================
+# 🧱 Frontend (Next.js)
+# ============================================
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+frontend/.vercel/
+frontend/node_modules/
+frontend/coverage/
+frontend/.eslintcache
+
+# ============================================
+# 🚀 Backend (NestJS)
+# ============================================
+backend/dist/
+backend/node_modules/
+backend/.env
+backend/.env.local
+backend/.eslintcache
+backend/coverage/
+
+# ============================================
+# 🐳 Docker & Postgres
+# ============================================
+docker-compose.override.yml
+pgdata/
+postgres-data/
+*.pid
+*.sock
+
+# ============================================
+# 🧪 Testing / Temporary
+# ============================================
+coverage/
+.nyc_output/
+.vscode/
+.idea/
+*.swp
+*.swo
+*.orig
+*.rej
+*.bak
+*.tmp
