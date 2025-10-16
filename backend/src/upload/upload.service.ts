@@ -57,4 +57,12 @@ export class UploadService {
     if (!found) throw new NotFoundException('Upload not found');
     return found;
   }
+
+  async getById(id: string) {
+    const row = await this.repo.findOne({ where: { id } });
+    if (!row) {
+      throw new NotFoundException(`Upload not found: ${id}`);
+    }
+    return row;
+  }
 }

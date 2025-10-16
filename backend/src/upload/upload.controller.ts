@@ -128,6 +128,7 @@ export class UploadController {
     const uploadDir = this.uploadService.getUploadDir();
     await ensureDir(uploadDir);
 
+    // 1️⃣ Save files to disk
     for (const file of files) {
       const baseName = path.parse(file.originalname).name;
       const baseSlug = slugify(baseName) || 'document';
@@ -147,6 +148,7 @@ export class UploadController {
       });
     }
 
+    // 2️⃣ Save records in DB
     const saved = await this.uploadService.createMany(
       records.map((r) => ({
         originalName: r.originalName,
@@ -157,6 +159,15 @@ export class UploadController {
         mimetype: r.mimetype,
       })),
     );
+
+    // 3️⃣ Enqueue extraction for each saved upload
+    for (const row of saved) {
+      await this.queueService.enqueue('extract_pdf', {
+        uploadId: row.id,
+        slug: row.slug,
+        filename: row.storedName,
+      });
+    }
 
     return saved;
   }
@@ -196,5 +207,12 @@ export class UploadController {
   async getReport(@Param('id') id: string) {
     await this.uploadService.assertUploadExists(id);
     return this.reportService.getExtractedReportByUploadId(id);
+  }
+
+  @Get(':id')
+  @ApiOkResponse({ type: UploadResponseDto })
+  async getOne(@Param('id') id: string) {
+    const row = await this.uploadService.getById(id);
+    return row; // shaped like UploadResponseDto
   }
 }

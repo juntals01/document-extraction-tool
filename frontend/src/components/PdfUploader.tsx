@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { UploadItem, UploadRecord } from '@/interfaces/upload';
 import { axiosClient } from '@/lib/api';
-import { BarChart3, Eye, Loader2, Upload, X } from 'lucide-react';
+import { Eye, Loader2, Upload, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
@@ -185,18 +185,11 @@ export default function PdfUploader() {
                       {it.result && (
                         <>
                           <Link
-                            href={`/pdf/${it.result.slug}`}
+                            href={`/pdfs/${it.result.id}`}
                             className='inline-flex items-center text-sm underline'
                           >
                             <Eye className='mr-1 h-4 w-4' />
                             View
-                          </Link>
-                          <Link
-                            href={`/pdf/${it.result.slug}/stats`}
-                            className='inline-flex items-center text-sm underline'
-                          >
-                            <BarChart3 className='mr-1 h-4 w-4' />
-                            Stats
                           </Link>
                         </>
                       )}
