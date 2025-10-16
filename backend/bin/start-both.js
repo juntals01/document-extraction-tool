@@ -1,8 +1,8 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
-const apiPath = path.resolve(__dirname, '../dist/main.js');
-const workerPath = path.resolve(__dirname, '../dist/worker.js');
+const apiPath = path.resolve(__dirname, '../dist/src/main.js');
+const workerPath = path.resolve(__dirname, '../dist/src/worker.js');
 
 function run(cmd, args, name) {
   const p = spawn(cmd, args, {
