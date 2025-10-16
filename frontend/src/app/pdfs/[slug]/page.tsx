@@ -77,7 +77,7 @@ export type GeographicArea = {
   id: string;
   name: string;
   huc: string | null;
-  coordinates: any;
+  coordinates: Record<string, unknown>;
   description: string | null;
   processedImageIds: string[];
   evidence: string[];

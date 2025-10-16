@@ -5,10 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { UploadItem, UploadRecord } from '@/interfaces/upload';
 import { axiosClient } from '@/lib/api';
+import { AxiosError, AxiosProgressEvent, isAxiosError } from 'axios';
 import { Eye, Loader2, Upload, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
+
+type UploadResponse = UploadRecord[] | UploadRecord;
+
+function extractAxiosMessage(err: unknown): string {
+  if (isAxiosError(err)) {
+    const ax = err as AxiosError<{ message?: string }>;
+    return ax.response?.data?.message ?? ax.message ?? 'Upload failed';
+  }
+  if (err instanceof Error) return err.message;
+  return 'Upload failed';
+}
 
 function formatBytes(n: number) {
   if (!n && n !== 0) return '';
@@ -41,10 +53,10 @@ export default function PdfUploader() {
     controllers.current[it.id] = ctrl;
 
     try {
-      const res = await axiosClient.post<UploadRecord[]>('/upload', form, {
+      const res = await axiosClient.post<UploadResponse>('/upload', form, {
         signal: ctrl.signal,
         headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (e) => {
+        onUploadProgress: (e: AxiosProgressEvent) => {
           if (!e.total) return;
           const pct = Math.min(100, Math.round((e.loaded / e.total) * 100));
           setItems((prev) =>
@@ -53,9 +65,9 @@ export default function PdfUploader() {
         },
       });
 
-      const payload = Array.isArray(res.data)
+      const payload: UploadRecord | undefined = Array.isArray(res.data)
         ? res.data[0]
-        : (res.data as unknown as UploadRecord);
+        : res.data;
 
       setItems((prev) =>
         prev.map((p) =>
@@ -64,22 +76,15 @@ export default function PdfUploader() {
             : p
         )
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = extractAxiosMessage(err);
       setItems((prev) =>
         prev.map((p) =>
-          p.id === it.id
-            ? {
-                ...p,
-                status: 'error',
-                error:
-                  err?.response?.data?.message ||
-                  err?.message ||
-                  'Upload failed',
-              }
-            : p
+          p.id === it.id ? { ...p, status: 'error', error: message } : p
         )
       );
     } finally {
+      // ensure controllers is typed as: React.MutableRefObject<Record<string, AbortController>>
       delete controllers.current[it.id];
     }
   }, []);

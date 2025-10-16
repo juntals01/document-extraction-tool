@@ -10,7 +10,6 @@ import {
   RefreshCcw,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   Bar,
   BarChart,
@@ -146,35 +145,38 @@ function exportReportJSON(meta: { originalName: string }, data: Report) {
 }
 
 /** quick CSV escape */
-function csvEscape(v: unknown): string {
-  if (v == null) return '';
-  const s = String(v);
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
+function csvEscape(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  const str =
+    typeof value === 'string'
+      ? value
+      : typeof value === 'object'
+        ? JSON.stringify(value)
+        : String(value);
+
+  return /[,"\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 }
-function toCSV<T extends object>(rows: T[], headers?: string[]): string {
+
+export function toCSV<T extends Record<string, unknown>>(
+  rows: T[],
+  headers?: (keyof T)[]
+): string {
   if (!rows?.length) return '';
-  const keys =
+
+  const keys: (keyof T)[] =
     headers ??
     Array.from(
-      rows.reduce<Set<string>>((set, r) => {
-        Object.keys(r || {}).forEach((k) => set.add(k));
+      rows.reduce<Set<keyof T>>((set, r) => {
+        (Object.keys(r) as (keyof T)[]).forEach((k) => set.add(k));
         return set;
-      }, new Set())
+      }, new Set<keyof T>())
     );
-  const head = keys.join(',');
+
+  const head = (keys as string[]).join(',');
   const body = rows
-    .map((r) =>
-      keys
-        .map((k) => {
-          const val = (r as any)?.[k];
-          if (val && typeof val === 'object')
-            return csvEscape(JSON.stringify(val));
-          return csvEscape(val);
-        })
-        .join(',')
-    )
+    .map((r) => keys.map((k) => csvEscape(r[k])).join(','))
     .join('\n');
+
   return `${head}\n${body}`;
 }
 
@@ -246,8 +248,6 @@ export default function ReportView({
   meta: { originalName: string; createdAt: string };
   data: Report;
 }) {
-  const router = useRouter();
-
   // Implementation “Target vs Achieved”
   const totalImpl = data.implementation.length;
   const achievedImpl = data.implementation.filter(
