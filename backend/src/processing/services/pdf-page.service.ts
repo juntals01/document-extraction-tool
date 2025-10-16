@@ -14,9 +14,8 @@ import {
   pagePdfName,
   tableName,
 } from '../../utils/file-names';
-import { buildHtmlFromTextItems, escapeHtml } from '../../utils/html-from-text';
+import { buildHtmlFromTextItems } from '../../utils/html-from-text';
 import { extractImagesFromPage } from '../../utils/image-extract';
-import { getPdfTableExtractor } from '../../utils/pdf-table-extractor';
 import { getPdfjs } from '../../utils/pdfjs';
 import { buildTablesFromPlainText } from '../../utils/table-text-heuristic';
 
@@ -174,70 +173,70 @@ export class PdfPageService {
     const idByPage = new Map<number, string>();
     processedAll.forEach((r) => idByPage.set(r.pageNumber, r.id));
 
-    try {
-      const pdfTableExtractor = await getPdfTableExtractor();
-      await new Promise<void>((resolve, reject) => {
-        pdfTableExtractor(
-          upload.path,
-          async (result: any) => {
-            // result.pageTables: [{ page: 1, tables: string[][], ... }, ...]
-            const perPageIdx: Record<number, number> = {};
-            for (const pt of result.pageTables as any[]) {
-              const pageNo = Number(pt.page);
-              const processedId = idByPage.get(pageNo);
-              if (!processedId) continue;
+    // try {
+    //   const pdfTableExtractor = await getPdfTableExtractor();
+    //   await new Promise<void>((resolve, reject) => {
+    //     pdfTableExtractor(
+    //       upload.path,
+    //       async (result: any) => {
+    //         // result.pageTables: [{ page: 1, tables: string[][], ... }, ...]
+    //         const perPageIdx: Record<number, number> = {};
+    //         for (const pt of result.pageTables as any[]) {
+    //           const pageNo = Number(pt.page);
+    //           const processedId = idByPage.get(pageNo);
+    //           if (!processedId) continue;
 
-              perPageIdx[pageNo] = perPageIdx[pageNo] ?? 0;
+    //           perPageIdx[pageNo] = perPageIdx[pageNo] ?? 0;
 
-              for (const tableRows of pt.tables as any) {
-                perPageIdx[pageNo] += 1;
-                const idx = perPageIdx[pageNo];
+    //           for (const tableRows of pt.tables as any) {
+    //             perPageIdx[pageNo] += 1;
+    //             const idx = perPageIdx[pageNo];
 
-                const rows: string[][] = Array.isArray(tableRows?.[0])
-                  ? (tableRows as string[][])
-                  : [
-                      Array.isArray(tableRows)
-                        ? (tableRows as string[])
-                        : [String(tableRows ?? '')],
-                    ];
+    //             const rows: string[][] = Array.isArray(tableRows?.[0])
+    //               ? (tableRows as string[][])
+    //               : [
+    //                   Array.isArray(tableRows)
+    //                     ? (tableRows as string[])
+    //                     : [String(tableRows ?? '')],
+    //                 ];
 
-                const htmlRows = rows
-                  .map(
-                    (row) =>
-                      `<tr>${row
-                        .map(
-                          (cell) =>
-                            `<td>${escapeHtml(String(cell ?? ''))}</td>`,
-                        )
-                        .join('')}</tr>`,
-                  )
-                  .join('');
+    //             const htmlRows = rows
+    //               .map(
+    //                 (row) =>
+    //                   `<tr>${row
+    //                     .map(
+    //                       (cell) =>
+    //                         `<td>${escapeHtml(String(cell ?? ''))}</td>`,
+    //                     )
+    //                     .join('')}</tr>`,
+    //               )
+    //               .join('');
 
-                const tableHtml = `<table data-detected="pdf-table-extractor">${htmlRows}</table>`;
+    //             const tableHtml = `<table data-detected="pdf-table-extractor">${htmlRows}</table>`;
 
-                const fileName = tableName(pageNo, idx);
-                const filePath = path.join(slugDir, fileName);
-                await fsp.writeFile(filePath, tableHtml, 'utf8');
+    //             const fileName = tableName(pageNo, idx);
+    //             const filePath = path.join(slugDir, fileName);
+    //             await fsp.writeFile(filePath, tableHtml, 'utf8');
 
-                await this.tableRepo.save(
-                  this.tableRepo.create({
-                    processedPdfId: processedId,
-                    index: idx,
-                    tablePath: filePath,
-                  }),
-                );
-              }
-            }
-            resolve();
-          },
-          (err: any) => reject(err),
-        );
-      });
-    } catch (err) {
-      this.logger.warn(
-        `Table extractor failed (fallback to text heuristic only): ${String(err)}`,
-      );
-    }
+    //             await this.tableRepo.save(
+    //               this.tableRepo.create({
+    //                 processedPdfId: processedId,
+    //                 index: idx,
+    //                 tablePath: filePath,
+    //               }),
+    //             );
+    //           }
+    //         }
+    //         resolve();
+    //       },
+    //       (err: any) => reject(err),
+    //     );
+    //   });
+    // } catch (err) {
+    //   this.logger.warn(
+    //     `Table extractor failed (fallback to text heuristic only): ${String(err)}`,
+    //   );
+    // }
 
     return this.processedRepo.find({
       where: { uploadId: upload.id },
