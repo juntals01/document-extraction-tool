@@ -1,11 +1,10 @@
-// backend/src/processing/utils/pdfjs.ts
+// backend/src/utils/pdfjs.ts  (or your current path)
 import { createRequire } from 'module';
 import * as path from 'path';
 
-// Resolve package paths whether we're CJS or ESM at runtime
 function resolveFromPkg(id: string) {
   try {
-    // @ts-ignore - available when transpiled to CJS
+    // @ts-ignore - available when compiled to CJS
     return require.resolve(id);
   } catch {
     const req = createRequire(__filename);
@@ -15,9 +14,10 @@ function resolveFromPkg(id: string) {
 
 /**
  * Node-safe PDF.js loader.
- * - Prefers legacy ESM build for Node
+ * - Uses legacy ESM build (best for Node)
  * - Injects standardFontDataUrl
- * - Disables font-face & eval (no Canvas needed)
+ * - Disables browser-only features (no Canvas, no eval)
+ * - Does NOT set workerSrc in Node (avoids the error)
  */
 export async function getPdfjs(): Promise<{
   getDocument: (src: any) => any;
@@ -29,8 +29,11 @@ export async function getPdfjs(): Promise<{
   for (const s of specs) {
     try {
       const mod: any = await import(s);
-      pdfjs = mod?.default ?? mod;
-      if (pdfjs?.getDocument) break;
+      const lib = mod?.default ?? mod;
+      if (lib?.getDocument) {
+        pdfjs = lib;
+        break;
+      }
     } catch {
       /* try next */
     }
@@ -45,10 +48,7 @@ export async function getPdfjs(): Promise<{
   const pkgPath = resolveFromPkg('pdfjs-dist/package.json');
   const stdFonts = path.resolve(path.dirname(pkgPath), 'standard_fonts');
 
-  // In Node, no web worker needed
-  if (pdfjs.GlobalWorkerOptions) {
-    pdfjs.GlobalWorkerOptions.workerSrc = undefined;
-  }
+  // Do NOT touch workerSrc in Node — that's what triggered your error.
 
   const getDocument = (src: any) =>
     pdfjs.getDocument({
