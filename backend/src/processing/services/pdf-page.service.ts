@@ -1,11 +1,11 @@
 // backend/src/processing/services/pdf-page.service.ts
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
 import { PDFDocument } from 'pdf-lib';
 import type { Repository } from 'typeorm';
 
-import { UploadService } from '../../upload/upload.service';
 import { ensureDir } from '../../upload/utils/ensure-dir';
 
 import {
@@ -13,14 +13,17 @@ import {
   imageName,
   pagePdfName,
   tableName,
-} from 'src/utils/file-names';
-import { buildHtmlFromTextItems, escapeHtml } from 'src/utils/html-from-text';
-import { extractImagesFromPage } from 'src/utils/image-extract';
-import { getPdfTableExtractor } from 'src/utils/pdf-table-extractor';
-import { getPdfjs } from 'src/utils/pdfjs';
-import { buildTablesFromPlainText } from 'src/utils/table-text-heuristic';
+} from '../../utils/file-names';
+import { buildHtmlFromTextItems, escapeHtml } from '../../utils/html-from-text';
+import { extractImagesFromPage } from '../../utils/image-extract';
+import { getPdfTableExtractor } from '../../utils/pdf-table-extractor';
+import { getPdfjs } from '../../utils/pdfjs';
+import { buildTablesFromPlainText } from '../../utils/table-text-heuristic';
+
 import { ProcessedPdfImage } from '../processed-pdf-image.entity';
 import { ProcessedPdfTable } from '../processed-pdf-table.entity';
+// ✅ keep this exact path as you requested
+import { UploadService } from 'src/upload/upload.service';
 import { ProcessedPdf } from '../processed-pdf.entity';
 
 @Injectable()
@@ -29,11 +32,11 @@ export class PdfPageService {
 
   constructor(
     private readonly uploads: UploadService,
-    @Inject('PROCESSED_PDF_REPOSITORY')
+    @InjectRepository(ProcessedPdf)
     private readonly processedRepo: Repository<ProcessedPdf>,
-    @Inject('PROCESSED_PDF_IMAGE_REPOSITORY')
+    @InjectRepository(ProcessedPdfImage)
     private readonly imageRepo: Repository<ProcessedPdfImage>,
-    @Inject('PROCESSED_PDF_TABLE_REPOSITORY')
+    @InjectRepository(ProcessedPdfTable)
     private readonly tableRepo: Repository<ProcessedPdfTable>,
   ) {}
 
@@ -140,7 +143,7 @@ export class PdfPageService {
         where: { uploadId: upload.id, pageNumber },
       });
 
-      // Images for this page (pure extract → write → save rows)
+      // Images for this page
       const images = extractImagesFromPage(originalDoc, pageNumber - 1);
       for (const img of images) {
         const fileName = imageName(pageNumber, img.idx, img.ext);
@@ -155,7 +158,7 @@ export class PdfPageService {
         );
       }
 
-      // Fallback text-based tables (may be none for drawn tables)
+      // Fallback text-based tables
       await this.detectAndSaveTablesForPage({
         slugDir,
         pageNumber,
@@ -165,7 +168,6 @@ export class PdfPageService {
     }
 
     // ---- Visual table extraction (whole file) with pdf-table-extractor ----
-    // Build a map of pageNumber -> processedPdfId for correct foreign key
     const processedAll = await this.processedRepo.find({
       where: { uploadId: upload.id },
     });
@@ -187,7 +189,6 @@ export class PdfPageService {
 
               perPageIdx[pageNo] = perPageIdx[pageNo] ?? 0;
 
-              // Convert each table (array of rows) into HTML safely
               for (const tableRows of pt.tables as any) {
                 perPageIdx[pageNo] += 1;
                 const idx = perPageIdx[pageNo];
@@ -241,6 +242,15 @@ export class PdfPageService {
     return this.processedRepo.find({
       where: { uploadId: upload.id },
       order: { pageNumber: 'ASC' },
+    });
+  }
+
+  async saveStructuredResult(pageId: string, result: any) {
+    const isObject = result && typeof result === 'object';
+    // ✅ use processedRepo, not pagesRepo
+    await this.processedRepo.update(pageId, {
+      structuredJson: isObject ? result : null,
+      structuredRaw: isObject ? null : result == null ? null : String(result),
     });
   }
 }

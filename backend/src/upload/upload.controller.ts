@@ -19,6 +19,7 @@ import {
 import { promises as fsp } from 'fs';
 import { diskStorage } from 'multer';
 import * as path from 'path';
+import { ReportService } from '../processing/services/report.service';
 import { QueueService } from '../queue/queue.service';
 import { PaginatedUploadResponseDto } from './dto/paginated-upload-response.dto';
 import { UploadResponseDto } from './dto/upload-response.dto';
@@ -41,6 +42,7 @@ export class UploadController {
   constructor(
     private readonly uploadService: UploadService,
     private readonly queueService: QueueService,
+    private readonly reportService: ReportService,
   ) {}
 
   // --- NEW: GET /upload (list) ---
@@ -157,5 +159,42 @@ export class UploadController {
     );
 
     return saved;
+  }
+
+  @Get(':id/report')
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        summary: {
+          type: 'object',
+          properties: {
+            totalGoals: { type: 'number' },
+            totalBMPs: { type: 'number' },
+            completionRate: { type: 'number' },
+          },
+          required: ['totalGoals', 'totalBMPs', 'completionRate'],
+        },
+        goals: { type: 'array', items: { type: 'object' } },
+        bmps: { type: 'array', items: { type: 'object' } },
+        implementation: { type: 'array', items: { type: 'object' } },
+        monitoring: { type: 'array', items: { type: 'object' } },
+        outreach: { type: 'array', items: { type: 'object' } },
+        geographicAreas: { type: 'array', items: { type: 'object' } },
+      },
+      required: [
+        'summary',
+        'goals',
+        'bmps',
+        'implementation',
+        'monitoring',
+        'outreach',
+        'geographicAreas',
+      ],
+    },
+  })
+  async getReport(@Param('id') id: string) {
+    await this.uploadService.assertUploadExists(id);
+    return this.reportService.getExtractedReportByUploadId(id);
   }
 }

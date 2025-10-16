@@ -1,41 +1,39 @@
-import { Module } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { DbModule } from '../db/database.module';
+// backend/src/processing/processing.module.ts
+import { Module, forwardRef } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { AiModule } from 'src/ai/ai.module';
+import { BMP } from '../bmp/bmp.entity';
+import { GeographicArea } from '../geographic-area/geographic-area.entity';
+import { Goal } from '../goal/goal.entity';
+import { ImplementationActivity } from '../implementation/implementation-activity.entity';
+import { MonitoringMetric } from '../monitoring/monitoring-metric.entity';
+import { OutreachActivity } from '../outreach/outreach-activity.entity';
 import { UploadModule } from '../upload/upload.module';
 import { ProcessedPdfImage } from './processed-pdf-image.entity';
 import { ProcessedPdfTable } from './processed-pdf-table.entity';
 import { ProcessedPdf } from './processed-pdf.entity';
+import { ExtractionPersistService } from './services/extraction-persist.service';
 import { PdfPageService } from './services/pdf-page.service';
-
-export const ProcessedPdfRepoProvider = {
-  provide: 'PROCESSED_PDF_REPOSITORY',
-  useFactory: (ds: DataSource) => ds.getRepository(ProcessedPdf),
-  inject: ['DATA_SOURCE'],
-};
-export const ProcessedPdfImageRepoProvider = {
-  provide: 'PROCESSED_PDF_IMAGE_REPOSITORY',
-  useFactory: (ds: DataSource) => ds.getRepository(ProcessedPdfImage),
-  inject: ['DATA_SOURCE'],
-};
-export const ProcessedPdfTableRepoProvider = {
-  provide: 'PROCESSED_PDF_TABLE_REPOSITORY',
-  useFactory: (ds: DataSource) => ds.getRepository(ProcessedPdfTable),
-  inject: ['DATA_SOURCE'],
-};
+import { ReportService } from './services/report.service';
 
 @Module({
-  imports: [DbModule, UploadModule],
-  providers: [
-    PdfPageService,
-    ProcessedPdfRepoProvider,
-    ProcessedPdfImageRepoProvider,
-    ProcessedPdfTableRepoProvider,
+  imports: [
+    AiModule,
+    TypeOrmModule.forFeature([
+      Goal,
+      BMP,
+      ImplementationActivity,
+      MonitoringMetric,
+      OutreachActivity,
+      GeographicArea,
+      ProcessedPdf,
+      ProcessedPdfImage,
+      ProcessedPdfTable,
+    ]),
+    forwardRef(() => UploadModule),
   ],
-  exports: [
-    PdfPageService,
-    ProcessedPdfRepoProvider,
-    ProcessedPdfImageRepoProvider,
-    ProcessedPdfTableRepoProvider,
-  ],
+  providers: [PdfPageService, ExtractionPersistService, ReportService],
+  exports: [PdfPageService, ExtractionPersistService, ReportService],
 })
 export class ProcessingModule {}
