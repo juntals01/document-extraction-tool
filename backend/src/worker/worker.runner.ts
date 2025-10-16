@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { QueueService } from '../queue/queue.service';
-import { UploadService } from '../upload/upload.service';
+import { PdfExtractProcessor } from './processor/pdf-extract.processor';
 
 @Injectable()
 export class WorkerRunner implements OnModuleInit {
@@ -8,7 +8,7 @@ export class WorkerRunner implements OnModuleInit {
 
   constructor(
     private readonly queue: QueueService,
-    private readonly uploads: UploadService,
+    private readonly pdfExtract: PdfExtractProcessor,
   ) {}
 
   onModuleInit() {
@@ -21,32 +21,26 @@ export class WorkerRunner implements OnModuleInit {
     return new Promise((r) => setTimeout(r, ms));
   }
 
-  private async processExtractPdf(payload: { uploadId: string }) {
-    const { uploadId } = payload;
-    const upload = await this.uploads.assertUploadExists(uploadId);
-    await this.sleep(300); // TODO real extraction
-    this.logger.log(`Processed upload ${upload.id} (${upload.slug})`);
-  }
-
   private async loop() {
     this.logger.log('Worker loop started');
-    // simple polling loop
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const job = await this.queue.claimNextPending();
       if (!job) {
         await this.sleep(1000);
         continue;
       }
+
+      this.logger.log(`▶️ Processing job ${job.id} (${job.name})`);
       try {
         if (job.name === 'extract_pdf') {
-          await this.processExtractPdf(job.payload as any);
+          const { uploadId } = job.payload as { uploadId: string };
+          await this.pdfExtract.process(uploadId);
         } else {
-          throw new Error(`Unknown job: ${job.name}`);
+          throw new Error(`Unknown job type: ${job.name}`);
         }
         await this.queue.markCompleted(job.id);
       } catch (err) {
-        this.logger.error(`Job ${job.id} failed`, err as any);
+        this.logger.error(`❌ Job ${job.id} failed`, err as any);
         await this.queue.markFailed(job.id, err);
       }
     }
