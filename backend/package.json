@@ -14,7 +14,7 @@
     "start:prod": "node dist/main",
     "worker:dev": "ts-node -r tsconfig-paths/register src/worker.ts",
     "worker:start": "node dist/worker.js",
-    "start:both": "concurrently -k -n API,WORKER -c auto \"npm run start:prod\" \"npm run worker:start\"",
+    "start:both": "node bin/start-both.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
